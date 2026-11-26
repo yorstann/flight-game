@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meridian Sky Courier</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; font-family: system-ui, -apple-system, sans-serif; color: #e8e2d2; }
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #rain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  .hidden { display: none !important; }
+  /* ---- chase HUD: minimal sim style ---- */
+  #hud { position: absolute; inset: 0; pointer-events: none; font-size: 14px; }
+  #topbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px; align-items: center;
+    background: rgba(8, 12, 24, 0.72); border: 1px solid rgba(255, 179, 71, 0.45); border-radius: 8px; padding: 7px 16px; white-space: nowrap; }
+  #topbar .m { font-weight: 700; color: #ffc93c; }
+  #topbar .o { color: #cfd6e4; }
+  #topbar .s { color: #8fd6a0; font-weight: 600; }
+  #tower { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: #9fd8ff;
+    background: rgba(8, 12, 24, 0.55); border-radius: 6px; padding: 4px 12px; white-space: nowrap; }
+  #chips { position: absolute; top: 10px; right: 12px; text-align: right; line-height: 1.5; font-size: 13px;
+    background: rgba(8, 12, 24, 0.6); border-radius: 8px; padding: 6px 10px; }
+  #chips b { color: #ffc93c; font-size: 16px; }
+  #thr { position: absolute; left: 12px; bottom: 12px; width: 150px; }
+  #thr .lab { font-size: 11px; letter-spacing: 2px; color: #9aa4b5; }
+  #thr .bar { height: 8px; background: rgba(255, 255, 255, 0.15); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+  #thr .fill { height: 100%; background: linear-gradient(90deg, #2e9e5b, #ffc93c); width: 70%; }
+  #thr .load { font-size: 11px; color: #ffb347; margin-top: 3px; }
+  #minimap { position: absolute; right: 12px; bottom: 12px; border: 1px solid rgba(255, 179, 71, 0.4); border-radius: 8px; background: rgba(8, 12, 24, 0.6); }
+  #stall { position: absolute; top: 34%; left: 50%; transform: translateX(-50%); color: #ff5a4b; font-weight: 800; font-size: 26px;
+    letter-spacing: 3px; text-shadow: 0 0 12px rgba(255, 90, 75, 0.8); }
+  #hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #b9c2d0;
+    background: rgba(8, 12, 24, 0.55); border-radius: 6px; padding: 5px 12px; white-space: nowrap; }
+  /* ---- cockpit: full POV interior ---- */
+  #cockpit { position: absolute; inset: 0; pointer-events: none; }
+  #canopy { position: absolute; inset: 0; background:
+    linear-gradient(90deg, rgba(6, 9, 18, 0.95) 0%, rgba(6, 9, 18, 0.55) 6%, transparent 12%, transparent 88%, rgba(6, 9, 18, 0.55) 94%, rgba(6, 9, 18, 0.95) 100%),
+    linear-gradient(0deg, transparent 82%, rgba(6, 9, 18, 0.9) 100%); }
+  #canopy .post { position: absolute; top: 0; bottom: 38%; width: 12px; left: 50%; margin-left: -6px;
+    background: linear-gradient(90deg, #141a2c, #232c46 45%, #10141f); border-left: 1px solid rgba(255, 179, 71, 0.35); border-right: 1px solid rgba(255, 179, 71, 0.35); }
+  #canopy .strut { position: absolute; top: 0; height: 55%; width: 5px; background: rgba(20, 26, 44, 0.75); }
+  #canopy .strut.l { left: 22%; transform: rotate(18deg); transform-origin: top; }
+  #canopy .strut.r { right: 22%; transform: rotate(-18deg); transform-origin: top; }
+  #canopy .rail { position: absolute; top: -2%; height: 62%; width: 16px; border-radius: 4px; opacity: 0.92;
+    background: repeating-linear-gradient(180deg, #d8a020 0 12px, #10141f 12px 24px); box-shadow: 0 0 6px rgba(0, 0, 0, 0.5); }
+  #canopy .rail.l { left: 2.5%; transform: rotate(13deg); transform-origin: top; }
+  #canopy .rail.r { right: 2.5%; transform: rotate(-13deg); transform-origin: top; }
+  #canopy .oh { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 130px; height: 26px;
+    background: #141a2c; border: 1px solid #2c3550; border-top: none; border-radius: 0 0 8px 8px;
+    background-image: radial-gradient(circle, #58d68d 2px, transparent 2.5px), radial-gradient(circle, #ffb347 2px, transparent 2.5px);
+    background-size: 22px 100%; background-position: 8px center, 19px center; background-repeat: repeat-x; }
+  #panel { position: absolute; left: 50%; bottom: 190px; transform: translateX(-50%); width: 1080px; max-width: 92vw;
+    background: linear-gradient(180deg, #1a2138, #0d1220); border: 1px solid rgba(255, 179, 71, 0.4); border-radius: 14px;
+    padding: 10px 14px 8px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
+  #warn { display: flex; gap: 8px; justify-content: center; margin-bottom: 6px; }
+  #warn span { font-size: 10px; letter-spacing: 1px; padding: 3px 8px; border-radius: 4px; background: #232a40; color: #8a94a8; border: 1px solid #2c3550; }
+  #warn span.on { background: #5a1a12; color: #ff8a7a; border-color: #ff5a4b; }
+  #gauges { display: flex; gap: 10px; align-items: flex-start; justify-content: center; }
+  .dial { width: 80px; text-align: center; }
+  .dial svg { width: 80px; height: 80px; display: block; }
+  .dial .lb { font-size: 10px; letter-spacing: 1px; color: #9aa4b5; margin-top: -2px; }
+  .mfd { width: 150px; height: 88px; border: 1px solid rgba(88, 214, 141, 0.4); border-radius: 6px; background: #06121a; }
+  .mfd canvas { width: 100%; height: 100%; display: block; }
+  #tapes { position: absolute; top: 0; bottom: 0; width: 100%; pointer-events: none; }
+  .tape { position: absolute; top: 50%; transform: translateY(-50%); width: 74px; height: 260px;
+    background: rgba(8, 12, 24, 0.78); border: 1px solid rgba(255, 179, 71, 0.4); border-radius: 6px; }
+  .tape.l { left: 8px; } .tape.r { right: 8px; }
+  .tape canvas { width: 100%; height: 100%; }
+  .console { position: absolute; bottom: 150px; width: 92px; background: rgba(10, 14, 26, 0.85); border: 1px solid #2c3550;
+    border-radius: 8px; padding: 8px 6px; font-size: 10px; letter-spacing: 1px; color: #9aa4b5; }
+  .console.l { left: 14px; } .console.r { right: 14px; }
+  .console .sw { height: 8px; background: #232a40; border-radius: 4px; margin: 7px 4px; }
+  .console .sw.on { background: #58d68d; }
+  #pedestal { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 340px; height: 185px;
+    background: linear-gradient(180deg, #161c30, #0a0e1a); border: 1px solid #2c3550; border-bottom: none; border-radius: 10px 10px 0 0; }
+  #pedestal .swrow { position: absolute; top: 10px; left: 14px; right: 14px; display: flex; justify-content: space-between; }
+  #pedestal .swrow span { width: 12px; height: 12px; background: #232a40; border: 1px solid #3a4560; border-radius: 2px; }
+  #pedestal .swrow span.on { background: #58d68d; }
+  #pedestal .swrow span.amb { background: #ffb347; }
+  #pedestal .knobs { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; }
+  #pedestal .knobs i { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #3a4560, #141a2c); border: 1px solid #3a4560; }
+  #pedestal .lever { position: absolute; bottom: 26px; width: 14px; height: 90px; border-radius: 5px; }
+  #pedestal .lever.thr { left: 88px; background: linear-gradient(180deg, #ff7a2e, #b34a12); }
+  #pedestal .lever.flp { left: 238px; background: linear-gradient(180deg, #ffd23c, #b38a12); }
+  #pedestal .cap { position: absolute; bottom: 4px; font-size: 10px; letter-spacing: 2px; color: #9aa4b5; }
+  #pedestal .cap.thr { left: 76px; } #pedestal .cap.flp { left: 226px; }
+  #stick { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 130px; height: 215px; }
+  #pedals { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 420px; height: 34px; }
+  #pedals .pd { position: absolute; bottom: 6px; width: 64px; height: 22px; background: #232a40; border: 1px solid #3a4560; border-radius: 5px; }
+  #pedals .pd.l { left: 46px; } #pedals .pd.r { right: 46px; }
+  .knee { position: absolute; bottom: 0; width: 150px; height: 110px; border-radius: 50% 50% 0 0;
+    background: radial-gradient(ellipse at 50% 100%, #3a4056 0%, #232838 55%, #141728 80%, transparent 100%); }
+  .knee.l { left: 6px; } .knee.r { right: 6px; }
+  /* ---- full-screen panels ---- */
+  .panel { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(5, 8, 16, 0.45); text-align: center; padding: 20px; }
+  .panel h1 { font-size: 54px; letter-spacing: 4px; color: #ffc93c; text-shadow: 0 4px 24px rgba(255, 180, 60, 0.4); }
+  .panel h2 { font-size: 15px; font-weight: 400; letter-spacing: 2px; color: #cfd6e4; margin: 10px 0 26px; max-width: 640px; line-height: 1.6; }
+  .panel .big { font-size: 30px; font-weight: 800; letter-spacing: 2px; margin-bottom: 8px; }
+  .panel .sub { font-size: 15px; color: #cfd6e4; margin-bottom: 22px; line-height: 1.7; max-width: 560px; }
+  .panel .key { display: inline-block; background: #ffc93c; color: #14100a; font-weight: 800; border-radius: 8px; padding: 12px 26px;
+    font-size: 16px; margin-top: 8px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .panel .row { display: flex; gap: 26px; margin: 14px 0 6px; }
+  .panel .stat { text-align: center; }
+  .panel .stat b { display: block; font-size: 26px; color: #ffc93c; }
+  .panel .stat span { font-size: 11px; letter-spacing: 2px; color: #9aa4b5; }
+  .panel .ctrls { font-size: 13px; color: #9aa4b5; margin-top: 18px; line-height: 1.9; }
+  .panel .shop { display: flex; gap: 12px; margin: 10px 0 4px; }
+  .panel .shop div { background: rgba(255, 255, 255, 0.06); border: 1px solid #2c3550; border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.6; }
+  .panel .shop b { color: #ffc93c; }
+  .panel.left { align-items: flex-start; text-align: left; padding-left: 70px; }
+  .panel.left .row, .panel.left .shop { justify-content: flex-start; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="rain"></canvas>
+<div id="hud" class="hidden">
+  <div id="topbar"><span class="m" id="hud-mission">Golden Hour Run</span><span class="o" id="hud-obj">Ring 0/6</span><span class="s" id="hud-score">Score 0 · 0 cr</span><span class="s" id="hud-lives">✈✈✈</span></div>
+  <div id="tower">Meridian Tower: cleared for takeoff</div>
+  <div id="chips"><b id="hud-speed">0 kt</b><br><span id="hud-alt">0 ft</span> · <span id="hud-fuel">100%</span></div>
+  <div id="thr"><div class="lab">THROTTLE</div><div class="bar"><div class="fill" id="thr-fill"></div></div><div class="load" id="thr-load"></div></div>
+  <canvas id="minimap" width="170" height="170"></canvas>
+  <div id="stall" class="hidden">⚠ STALL ⚠</div>
+  <div id="hint">↑↓ pitch · ←→ bank · Shift / Ctrl throttle · B drop · C cockpit · P pause · M sound</div>
+</div>
+<div id="cockpit" class="hidden">
+  <div id="canopy"><div class="post"></div><div class="strut l"></div><div class="strut r"></div><div class="rail l"></div><div class="rail r"></div><div class="oh"></div></div>
+  <div id="tapes"><div class="tape l"><canvas id="tape-spd" width="74" height="260"></canvas></div><div class="tape r"><canvas id="tape-alt" width="74" height="260"></canvas></div></div>
+  <div class="console l">COM · NAV<div class="sw on"></div><div class="sw on"></div><div class="sw"></div><div class="sw on"></div></div>
+  <div class="console r">ELEC · FUEL<div class="sw on"></div><div class="sw on"></div><div class="sw on"></div><div class="sw"></div></div>
+  <div id="panel">
+    <div id="warn"><span id="w-stall">STALL</span><span id="w-fuel">LOW FUEL</span><span id="w-gear">GEAR</span><span id="w-dmg">DAMAGE</span></div>
+    <div id="gauges">
+      <div class="dial"><svg id="dial-speed" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-speed"></g></svg><div class="lb">AIRSPEED KT</div></div>
+      <div class="dial"><svg id="dial-alt" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-alt"></g></svg><div class="lb">ALT FT</div></div>
+      <div class="dial"><svg id="dial-oil" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-oil"></g></svg><div class="lb">OIL %</div></div>
+      <div class="mfd"><canvas id="mfd-map" width="150" height="96"></canvas></div>
+      <div class="mfd"><canvas id="mfd-eng" width="150" height="96"></canvas></div>
+      <div class="dial"><svg id="dial-fuel" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-fuel"></g></svg><div class="lb">FUEL %</div></div>
+      <div class="dial"><svg id="dial-heading" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-heading"></g></svg><div class="lb">HEADING</div></div>
+      <div class="dial"><svg id="dial-vsi" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-vsi"></g></svg><div class="lb">VSI ×100 FPM</div></div>
+      <div class="dial"><svg id="dial-rpm" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-rpm"></g></svg><div class="lb">RPM %</div></div>
+      <div class="dial"><svg id="dial-egt" viewBox="0 0 100 100"><g class="face"></g><g class="needle" id="nd-egt"></g></svg><div class="lb">EGT °C</div></div>
+    </div>
+  </div>
+  <div id="pedestal"><div class="swrow"><span class="on"></span><span></span><span class="on"></span><span class="amb"></span><span></span><span class="on"></span><span></span><span class="amb"></span><span class="on"></span><span></span></div><div class="knobs"><i></i><i></i><i></i></div><div class="lever thr" id="lev-thr"></div><div class="lever flp" id="lev-flp"></div><div class="cap thr">THR</div><div class="cap flp">FLAP</div></div>
+  <div id="stick"><svg id="stick-svg" viewBox="0 0 130 215" width="130" height="215">
+    <g id="stick-g">
+      <ellipse cx="65" cy="208" rx="26" ry="9" fill="#10141f" stroke="#2c3550" stroke-width="1"/>
+      <path d="M65 212 L65 92" stroke="#1c2233" stroke-width="22" stroke-linecap="round"/>
+      <path d="M65 212 L65 92" stroke="#2c3550" stroke-width="10" stroke-linecap="round"/>
+      <rect x="36" y="14" width="58" height="84" rx="15" fill="#232a40" stroke="#3a4560" stroke-width="2"/>
+      <rect x="46" y="24" width="38" height="24" rx="7" fill="#2c3550"/>
+      <circle cx="65" cy="36" r="7" fill="#ff5a4b"/>
+      <circle cx="65" cy="60" r="6" fill="#58d68d"/>
+      <circle cx="46" cy="76" r="5" fill="#e8e2d2"/><circle cx="84" cy="76" r="5" fill="#ffb347"/>
+    </g>
+  </svg></div>
+  <div id="pedals"><div class="pd l"></div><div class="pd r"></div></div>
+  <div class="knee l"></div><div class="knee r"></div>
+</div>
+<div id="panel-title" class="panel">
+  <h1>MERIDIAN SKY COURIER</h1>
+  <h2>Five missions through one deep valley — golden-hour ring runs, fire bombing, supply drops, a crosswind graded landing, and a night rescue in the rain. Mount Meridian watches the valley head.</h2>
+  <div class="row"><div class="stat"><b>5</b><span>MISSIONS</span></div><div class="stat"><b>3</b><span>LIVES</span></div><div class="stat"><b>×5</b><span>COMBO</span></div></div>
+  <div class="key">PRESS SPACE TO FLY</div>
+  <div class="ctrls">↑↓ pitch · ←→ bank · Shift / Ctrl throttle · B drop water / parcel · C cockpit view · P pause · M sound</div>
+</div>
+<div id="panel-mission" class="panel hidden">
+  <div class="big" id="mission-title">MISSION COMPLETE</div>
+  <div class="sub" id="mission-sub"></div>
+  <div class="row"><div class="stat"><b id="m-score">0</b><span>SCORE</span></div><div class="stat"><b id="m-done">1/5</b><span>MISSIONS</span></div><div class="stat"><b id="m-credits">0</b><span>CREDITS</span></div></div>
+  <div class="shop" id="shop">
+    <div><b>1</b> — Bigger tank<br><span id="shop-tank">100 → 125 fuel · 150 cr</span></div>
+    <div><b>2</b> — Engine tune<br><span id="shop-eng">+9% thrust · 200 cr</span></div>
+    <div><b>3</b> — Handling<br><span id="shop-han">+15% roll · 180 cr</span></div>
+  </div>
+  <div class="key">SPACE — NEXT MISSION</div>
+  <div class="ctrls">Press 1 / 2 / 3 to buy an upgrade between missions</div>
+</div>
+<div id="panel-pause" class="panel hidden">
+  <div class="big">PAUSED</div>
+  <div class="sub">The valley waits. Press P to keep flying.</div>
+  <div class="key">P — RESUME</div>
+</div>
+<div id="panel-over" class="panel hidden">
+  <div class="big">FLIGHT OVER</div>
+  <div class="sub" id="over-sub">Out of aircraft. The valley keeps the mountain.</div>
+  <div class="row"><div class="stat"><b id="o-score">0</b><span>SCORE</span></div><div class="stat"><b id="o-done">0/5</b><span>MISSIONS</span></div></div>
+  <div class="key">SPACE — FLY AGAIN</div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
